@@ -9,12 +9,6 @@
 
 console.log("Restoring tab from aggressive throttled state...");
 
-// Make sure we don't try to restore a tab that wasn't throttled
-if (!window.__tabPowerSaverApplied) {
-  console.log("⚠️ Tab wasn't throttled - skipping restoration");
-  return;
-}
-
 // === 1. RESTORE JAVASCRIPT TIMING FUNCTIONS ===
 if (window.__tabPowerSaverOriginals) {
   Object.defineProperty(window, 'setTimeout', {
