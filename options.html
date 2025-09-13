@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Power Saver Options</title>
+  <style>
+    body { padding: 20px; font-family: sans-serif; }
+    h1 { color: #333; }
+    .setting { margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 4px; }
+    .default { color: #666; font-size: 0.9em; }
+    .recommendation { background-color: #e6f7ff; padding: 10px; margin-top: 10px; border-left: 4px solid #1890ff; }
+    .warning-box {
+  margin-top: 20px;
+  padding: 15px;
+  border-radius: 6px;
+  background-color: #fffbe6;
+  border: 1px solid #ffe58f;
+}
+
+.warning-icon {
+  font-size: 24px;
+  margin-bottom: 10px;
+  display: block;
+}
+
+.steps {
+  background: white;
+  border-radius: 4px;
+  padding: 15px;
+  margin: 15px 0;
+  border: 1px solid #f0f0f0;
+}
+
+.step {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.step-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background: #1890ff;
+  color: white;
+  border-radius: 50%;
+  margin-right: 10px;
+  flex-shrink: 0;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.warning-text {
+  background-color: #fff7e6;
+  border-left: 3px solid #faad14;
+  padding: 8px 12px;
+  margin: 10px 0;
+  border-radius: 0 4px 4px 0;
+}
+
+code {
+  background: #f5f5f5;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-family: Consolas, Monaco, 'Andale Mono', monospace;
+}
+
+  </style>
+</head>
+<body>
+  <h1>Power Saver Options</h1>
+
+  <div class="setting">
+    <h3>Firefox Native Throttling Settings</h3>
+    <p>For maximum power savings, adjust these settings in <code>about:config</code>:</p>
+
+    <div class="setting-item">
+      <strong>dom.timeout.background_budget_regeneration_rate</strong>
+      <div class="default">Default: 15000 (15 seconds)</div>
+      <div class="recommendation">Recommended for power saving: 30000 (30 seconds)</div>
+      <p>Controls how quickly background tabs regain their timer budget.</p>
+    </div>
+
+    <div class="setting-item">
+      <strong>dom.timeout.background_throttling_max_budget</strong>
+      <div class="default">Default: 15000 (15 seconds)</div>
+      <div class="recommendation">Recommended for power saving: 5000 (5 seconds)</div>
+      <p>Sets maximum timer budget background tabs can accumulate.</p>
+    </div>
+
+    <div class="setting-item">
+      <strong>dom.timeout.budget_throttling_max_delay</strong>
+      <div class="default">Default: 15000 (15 seconds)</div>
+      <div class="recommendation">Recommended for power saving: 5000 (5 seconds)</div>
+      <p>Determines maximum delay for timers in background tabs.</p>
+    </div>
+
+    <div class="warning-box">
+      <div class="warning-icon">⚠️</div>
+      <div class="warning-content">
+        <strong>Important Configuration Note</strong>
+        <p>
+          These settings require manual configuration in Firefox's advanced settings.
+        </p>
+
+        <div class="steps">
+          <div class="step">
+            <span class="step-number">1</span>
+            <span>Click in your Firefox address bar</span>
+          </div>
+          <div class="step">
+            <span class="step-number">2</span>
+            <span>Type <code>about:config</code> and press Enter</span>
+          </div>
+          <div class="step">
+            <span class="step-number">3</span>
+            <span>Click "Accept the Risk and Continue" on the warning page</span>
+          </div>
+          <div class="step">
+            <span class="step-number">4</span>
+            <span>Search for the setting name and double-click to modify it</span>
+          </div>
+        </div>
+
+        <p class="warning-text">
+          <strong>Warning:</strong> Changing advanced configuration preferences can impact Firefox performance or security.
+          Always create a backup of your profile before making changes to about:config.
+        </p>
+      </div>
+    </div>  
+  </div>
+</body>
+</html>

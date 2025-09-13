@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Whitelisted Sites</title>
+  <link rel="stylesheet" href="whitelist.css">
+  <style>
+    body{
+      font-family:Arial,Helvetica,sans-serif;
+      margin:1rem;
+     width:300px;
+    }
+    input[type=text]{
+      width:70%;
+      padding:.3rem;
+    }
+    button{
+      padding:.3rem .6rem;
+    }
+    ul{
+      list-style:none;
+      padding-left:0;
+      margin-top:1rem;
+    }
+    li{
+      display:flex;
+      justify-content:space-between;
+      margin:.2rem 0;
+    }
+  </style>
+</head>
+<body>
+  <h2>Whitelisted Sites</h2>
+  <p>Sites here will <b>not</b> be throttled.</p>
+
+  <form id="addForm">
+    <input id="siteInput" type="text" placeholder="example.com" required>
+    <button>Add</button>
+  </form>
+
+  <ul id="siteList"></ul>
+
+  <script src="whitelist.js"></script>
+</body>
+</html>
