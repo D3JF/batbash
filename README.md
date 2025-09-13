@@ -21,4 +21,19 @@ TBA
 
 ## Build from source (optional)
 
-TBA
+```bash
+git clone https://github.com/D3JF/batbash.git
+cd batbash
+```
+
+Create the unsigned **.xpi** (a plain zip with Firefox’s extension structure):
+
+```bash
+zip -r batbash.xpi manifest.json *.js icons/ _locales/ -x ".*" "node_modules/*"
+```
+
+Install locally:
+
+1. Open Firefox → `about:debugging` → **This Firefox** → **Load Temporary Add-on**  
+2. Pick the generated `batbash.xpi`  
+3. Extension stays loaded until you restart the browser (or reload it manually).
