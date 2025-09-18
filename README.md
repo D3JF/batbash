@@ -17,7 +17,8 @@ Aggressively throttle background tabs to squeeze every last drop of battery life
 
 ## Install
 
-TBA
+One-click install from the official Add-ons for Firefox page:
+https://addons.mozilla.org/cs/firefox/addon/batbash/
 
 ## Build from source (optional)
 
@@ -29,7 +30,7 @@ cd batbash
 Create the unsigned **.xpi** (a plain zip with Firefox’s extension structure):
 
 ```bash
-zip -r batbash.xpi manifest.json *.js icons/ _locales/ -x ".*" "node_modules/*"
+zip -r batbash.xpi * -x ".git/*" "node_modules/*" ".*" "batbash.xpi" "README.md" "LICENSE"
 ```
 
 Install locally:
