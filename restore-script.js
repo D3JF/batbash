@@ -29,6 +29,21 @@ if (window.__tabPowerSaverOriginals) {
     writable: true
   });
 
+  // Restore cancelAnimationFrame
+  if (window.__tabPowerSaverOriginals.cancelAnimationFrame) {
+    Object.defineProperty(window, 'cancelAnimationFrame', {
+      value: window.__tabPowerSaverOriginals.cancelAnimationFrame,
+      configurable: true,
+      writable: true
+    });
+  }
+
+  // Clear RAF ID mapping
+  if (window.__tabPowerSaverRAFIdMap) {
+    window.__tabPowerSaverRAFIdMap.clear();
+    delete window.__tabPowerSaverRAFIdMap;
+  }
+
   console.log("✓ JavaScript timing functions restored");
 } else {
   console.warn("Warning: Original timing functions not found for restoration");
@@ -36,22 +51,45 @@ if (window.__tabPowerSaverOriginals) {
 
 // === 2. RESTORE CANVAS & WEBGL FUNCTIONALITY ===
 if (window.__tabPowerSaverOriginalCanvasGetContext) {
-  // Restore canvas getContext method
+  // Restore canvas getContext method on prototype
   HTMLCanvasElement.prototype.getContext = window.__tabPowerSaverOriginalCanvasGetContext;
 
-  // Restore individual canvas context methods
+  // Restore individual canvas context methods for existing canvases
   const canvases = document.querySelectorAll('canvas');
   canvases.forEach(canvas => {
-    const context2d = canvas.getContext('2d');
-    if (context2d && context2d.__originalFillRect && context2d.__originalDrawImage) {
-      context2d.fillRect = context2d.__originalFillRect;
-      context2d.drawImage = context2d.__originalDrawImage;
+    try {
+      const context2d = canvas.getContext('2d');
+      if (context2d && context2d.__tabPowerSaverThrottled) {
+        // Restore all overridden methods
+        if (context2d.__originalFillRect) {
+          context2d.fillRect = context2d.__originalFillRect;
+          delete context2d.__originalFillRect;
+        }
+        if (context2d.__originalDrawImage) {
+          context2d.drawImage = context2d.__originalDrawImage;
+          delete context2d.__originalDrawImage;
+        }
+        if (context2d.__originalStroke) {
+          context2d.stroke = context2d.__originalStroke;
+          delete context2d.__originalStroke;
+        }
+        if (context2d.__originalFill) {
+          context2d.fill = context2d.__originalFill;
+          delete context2d.__originalFill;
+        }
 
-      // Clean up our added properties
-      delete context2d.__originalFillRect;
-      delete context2d.__originalDrawImage;
+        // Clean up throttle marker
+        delete context2d.__tabPowerSaverThrottled;
+      }
+    } catch (e) {
+      console.debug("Could not restore canvas context:", e);
     }
   });
+
+  // Clear the render time tracking WeakMap
+  if (window.__tabPowerSaverCanvasRenderMap) {
+    delete window.__tabPowerSaverCanvasRenderMap;
+  }
 
   console.log("✓ Canvas rendering functionality restored");
 } else {
@@ -59,6 +97,13 @@ if (window.__tabPowerSaverOriginalCanvasGetContext) {
 }
 
 // === 3. RESTORE MEDIA STATE ===
+// First, disconnect the mutation observer
+if (window.__tabPowerSaverMediaObserver) {
+  window.__tabPowerSaverMediaObserver.disconnect();
+  delete window.__tabPowerSaverMediaObserver;
+  console.log("✓ Media mutation observer disconnected");
+}
+
 if (window.__tabPowerSaverMediaState) {
   window.__tabPowerSaverMediaState.forEach(({ element, wasPlaying, currentTime }) => {
     // Restore original play method
@@ -66,6 +111,9 @@ if (window.__tabPowerSaverMediaState) {
       element.play = element.__originalPlay;
       delete element.__originalPlay;
     }
+
+    // Clean up throttle marker
+    delete element.__tabPowerSaverThrottled;
 
     // Restore playback state
     if (wasPlaying) {
