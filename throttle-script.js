@@ -3,32 +3,31 @@
   // Make the script idempotent – safe to run many times
   if (window.__tabPowerSaverApplied) {
     console.log('⚠️ Throttle script already applied to this tab – skipping re-injection');
-    return; // This return is inside the IIFE
+    return; // Exit entire script execution
   }
-})();
 
-console.log("Applying SUPER-AGGRESSIVE throttling...");
+  console.log("Applying SUPER-AGGRESSIVE throttling...");
 
-// Mark this tab as throttled
-window.__tabPowerSaverApplied = true;
+  // Mark this tab as throttled
+  window.__tabPowerSaverApplied = true;
 
-// Store original functions for restoration - use bind to lock them to their current context
-// This prevents any reference chain breaks if restoration and re-throttling occur
-const originalSetTimeout = window.setTimeout.bind(window);
-const originalSetInterval = window.setInterval.bind(window);
-const originalRAF = window.requestAnimationFrame.bind(window);
-const originalCanvasGetContext = HTMLCanvasElement.prototype.getContext;
+  // Store original functions for restoration - use bind to lock them to their current context
+  // This prevents any reference chain breaks if restoration and re-throttling occur
+  const originalSetTimeout = window.setTimeout.bind(window);
+  const originalSetInterval = window.setInterval.bind(window);
+  const originalRAF = window.requestAnimationFrame.bind(window);
+  const originalCanvasGetContext = HTMLCanvasElement.prototype.getContext;
 
-window.__tabPowerSaverOriginals = {
-  setTimeout: originalSetTimeout,
-  setInterval: originalSetInterval,
-  requestAnimationFrame: originalRAF,
-  canvasGetContext: originalCanvasGetContext
-};
+  window.__tabPowerSaverOriginals = {
+    setTimeout: originalSetTimeout,
+    setInterval: originalSetInterval,
+    requestAnimationFrame: originalRAF,
+    canvasGetContext: originalCanvasGetContext
+  };
 
-// === 1. EXTREME JAVASCRIPT TIMING THROTTLING ===
-// Use the locked original references to prevent recursion issues
-Object.defineProperty(window, 'setTimeout', {
+  // === 1. EXTREME JAVASCRIPT TIMING THROTTLING ===
+  // Use the locked original references to prevent recursion issues
+  Object.defineProperty(window, 'setTimeout', {
   value: (cb, delay = 0) => {
     if (delay < 1000) {
       console.debug(`[THROTTLE] Short setTimeout (${delay}ms) intercepted and extended`);
@@ -382,8 +381,9 @@ style.textContent = `
     transform: translate3d(0, 0, 0) !important;
   }
 `;
-document.head.appendChild(style);
-window.__tabPowerSaverStyleElement = style;
+  document.head.appendChild(style);
+  window.__tabPowerSaverStyleElement = style;
 
-console.log("SUPER-AGGRESSIVE throttling applied successfully (layout-safe)");
-console.log("JavaScript timers, animations, canvas, and media are now severely restricted");
+  console.log("SUPER-AGGRESSIVE throttling applied successfully (layout-safe)");
+  console.log("JavaScript timers, animations, canvas, and media are now severely restricted");
+})(); // End IIFE - ensures idempotency check prevents re-execution
