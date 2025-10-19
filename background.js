@@ -166,14 +166,14 @@ function setupMessageListener() {
 
 // Start monitoring tabs for changes
 function startTabMonitoring() {
-  console.log(`⏱️ [${Date.now() % 100000}] Starting periodic background tab monitoring (3s interval)`);
+  console.log(`⏱️ [${Date.now() % 100000}] Starting periodic background tab monitoring (5s interval)`);
 
   // Clear any existing interval first
   if (window.tabMonitoringInterval) {
     clearInterval(window.tabMonitoringInterval);
   }
 
-  // Check for background tabs every 3 seconds (more responsive)
+  // Check for background tabs every 5 seconds
   window.tabMonitoringInterval = setInterval(detectAllBackgroundTabs, 5000);
 }
 
@@ -257,52 +257,69 @@ function isTabAccessible(tab) {
 }
 
 // Throttle a specific tab - ENHANCED WITH REDECLARATION FIX
-async function throttleTab(tabId) {
+function throttleTab(tabId) {
   const throttleTime = Date.now();
   console.log(`⚡ [${throttleTime % 100000}] ATTEMPTING TO THROTTLE tab: ${tabId}`);
 
-  // First check if already throttled to avoid redeclaration
-  try {
-    const [alreadyThrottled] = await browserApi.scripting.executeScript({
-      target: { tabId },
-      world: 'MAIN',
-      func: () => window.__tabPowerSaverApplied === true
-    });
-
-    if (alreadyThrottled.result) {
-      console.log(`⚡ [${throttleTime % 100000}] Tab already throttled, skipping: ${tabId}`);
-      return;
-    }
-  } catch (e) {
-    // If check fails, proceed with throttling attempt
+  // Check if already in our tracked set (quick local check)
+  if (throttledTabs.has(tabId)) {
+    console.log(`⏭️ [${throttleTime % 100000}] Tab already in throttled set, skipping: ${tabId}`);
+    return;
   }
 
   browserApi.tabs.get(tabId, (tab) => {
     if (browserApi.runtime.lastError || !isTabAccessible(tab)) {
-      console.error(`❌ [${throttleTime % 100000}] Failed to get tab for throttling:`, browserApi.runtime.lastError);
+      if (browserApi.runtime.lastError) {
+        console.debug(`❌ [${throttleTime % 100000}] Failed to get tab for throttling:`, browserApi.runtime.lastError.message);
+      }
       return;
     }
 
-    try {
-      browserApi.scripting.executeScript({
-        target: {tabId: tabId},
-        files: ['throttle-script.js']
-      }, () => {
-        if (browserApi.runtime.lastError) {
-          if (browserApi.runtime.lastError.message.includes('Missing host permission')) {
-            console.log(`🔒 [${throttleTime % 100000}] Skipping tab without permission: ${tab.url}`);
-          } else {
-            console.error(`❌ [${throttleTime % 100000}] Failed to throttle tab:`, tabId, browserApi.runtime.lastError);
-          }
-        } else {
-          console.log(`✅ [${throttleTime % 100000}] THROTTLED tab: ${tab.id} - ${tab.title}`);
-          throttledTabs.add(tabId);
-        }
-      });
-    } catch (e) {
-      console.error(`❌ [${throttleTime % 100000}] Exception while throttling tab:`, tabId, e);
-    }
+    // Before injecting, check if the page already has the throttle applied
+    browserApi.tabs.executeScript(tabId, {
+      code: 'typeof window.__tabPowerSaverApplied !== "undefined" && window.__tabPowerSaverApplied === true'
+    }, (checkResults) => {
+      if (browserApi.runtime.lastError) {
+        // Can't check, try throttling anyway
+        console.debug(`⚠️ [${throttleTime % 100000}] Could not check throttle status, proceeding: ${browserApi.runtime.lastError.message}`);
+        injectThrottleScript(tabId, tab, throttleTime);
+        return;
+      }
+
+      if (checkResults && checkResults[0] === true) {
+        console.log(`⏭️ [${throttleTime % 100000}] Tab already throttled in page, adding to set: ${tabId}`);
+        throttledTabs.add(tabId);
+        return;
+      }
+
+      // Not throttled, inject the script
+      injectThrottleScript(tabId, tab, throttleTime);
+    });
   });
+}
+
+// Helper function to inject throttle script
+function injectThrottleScript(tabId, tab, throttleTime) {
+  try {
+    browserApi.tabs.executeScript(tabId, {
+      file: 'throttle-script.js'
+    }, (results) => {
+      if (browserApi.runtime.lastError) {
+        if (browserApi.runtime.lastError.message.includes('Missing host permission')) {
+          console.log(`🔒 [${throttleTime % 100000}] Skipping tab without permission: ${tab.url}`);
+        } else {
+          console.error(`❌ [${throttleTime % 100000}] Failed to throttle tab ${tabId}:`, browserApi.runtime.lastError.message);
+        }
+        return;
+      }
+      
+      // Add to Set AFTER successful injection
+      throttledTabs.add(tabId);
+      console.log(`✅ [${throttleTime % 100000}] THROTTLED tab: ${tabId} - ${tab.title}`);
+    });
+  } catch (e) {
+    console.error(`❌ [${throttleTime % 100000}] Exception while throttling tab ${tabId}:`, e.message);
+  }
 }
 
 // Restore a specific tab
@@ -318,13 +335,12 @@ function restoreTab(tabId) {
     }
 
     try {
-      browserApi.scripting.executeScript({
-        target: {tabId: tabId},
-        files: ['restore-script.js']
+      browserApi.tabs.executeScript(tabId, {
+        file: 'restore-script.js'
       }, () => {
         if (browserApi.runtime.lastError) {
           if (!browserApi.runtime.lastError.message.includes('Missing host permission')) {
-            console.error(`❌ [${restoreTime % 100000}] Failed to restore tab:`, tabId, browserApi.runtime.lastError);
+            console.error(`❌ [${restoreTime % 100000}] Failed to restore tab: ${tabId} - ${tab.title}`, browserApi.runtime.lastError.message);
           }
         } else {
           console.log(`✅ [${restoreTime % 100000}] RESTORED tab: ${tabId} - ${tab.title}`);
@@ -332,7 +348,7 @@ function restoreTab(tabId) {
         throttledTabs.delete(tabId);
       });
     } catch (e) {
-      console.error(`❌ [${restoreTime % 100000}] Exception while restoring tab:`, tabId, e);
+      console.error(`❌ [${restoreTime % 100000}] Exception while restoring tab: ${tabId} - ${tab.title}`, e.message);
       throttledTabs.delete(tabId);
     }
   });
@@ -373,13 +389,5 @@ function updateButtonIcon(enabled) {
   });
 }
 
-// Initialize everything
-console.log(`⚙️ [${Date.now() % 100000}] Initializing extension...`);
+// Initialize everything (single initialization point)
 initializeExtension();
-
-// Add initialization code to ensure icon is correct on startup
-browserApi.storage.local.get('powerSavingEnabled', (data) => {
-  const enabled = data.powerSavingEnabled || false;
-  updateButtonIcon(enabled);
-  console.log(`✨ [${Date.now() % 100000}] Extension initialized - Power Saving Mode is ${enabled ? 'ON' : 'OFF'}`);
-});

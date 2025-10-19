@@ -50,50 +50,71 @@
   
   // === 2. RESTORE CANVAS & WEBGL FUNCTIONALITY ===
   if (window.__tabPowerSaverOriginalCanvasGetContext) {
-    // First, restore existing canvas contexts BEFORE changing the prototype
-    // (because once we restore the prototype, we lose access to the throttled flag)
-    const canvases = document.querySelectorAll('canvas');
-    canvases.forEach(canvas => {
-      try {
-        // Try to get existing context without creating a new one
-        // Use the throttled getContext which will return existing contexts with the flag
-        const existingContext = canvas.getContext && canvas.getContext('2d', { willReadFrequently: true });
-        if (existingContext && existingContext.__tabPowerSaverThrottled) {
-          // Restore all overridden methods
-          if (existingContext.__originalFillRect) {
-            existingContext.fillRect = existingContext.__originalFillRect;
-            delete existingContext.__originalFillRect;
+    try {
+      // First, restore existing canvas contexts BEFORE changing the prototype
+      // (because once we restore the prototype, we lose access to the throttled flag)
+      const canvases = document.querySelectorAll('canvas');
+      canvases.forEach(canvas => {
+        try {
+          // Try to get existing context without creating a new one
+          // Use the throttled getContext which will return existing contexts with the flag
+          const existingContext = canvas.getContext && canvas.getContext('2d', { willReadFrequently: true });
+          if (existingContext && existingContext.__tabPowerSaverThrottled) {
+            // Restore all overridden methods
+            if (existingContext.__originalFillRect) {
+              existingContext.fillRect = existingContext.__originalFillRect;
+              delete existingContext.__originalFillRect;
+            }
+            if (existingContext.__originalDrawImage) {
+              existingContext.drawImage = existingContext.__originalDrawImage;
+              delete existingContext.__originalDrawImage;
+            }
+            if (existingContext.__originalStroke) {
+              existingContext.stroke = existingContext.__originalStroke;
+              delete existingContext.__originalStroke;
+            }
+            if (existingContext.__originalFill) {
+              existingContext.fill = existingContext.__originalFill;
+              delete existingContext.__originalFill;
+            }
+    
+            // Clean up throttle marker
+            delete existingContext.__tabPowerSaverThrottled;
           }
-          if (existingContext.__originalDrawImage) {
-            existingContext.drawImage = existingContext.__originalDrawImage;
-            delete existingContext.__originalDrawImage;
-          }
-          if (existingContext.__originalStroke) {
-            existingContext.stroke = existingContext.__originalStroke;
-            delete existingContext.__originalStroke;
-          }
-          if (existingContext.__originalFill) {
-            existingContext.fill = existingContext.__originalFill;
-            delete existingContext.__originalFill;
-          }
-  
-          // Clean up throttle marker
-          delete existingContext.__tabPowerSaverThrottled;
+        } catch (e) {
+          console.debug("Could not restore individual canvas context:", e);
         }
-      } catch (e) {
-        console.debug("Could not restore canvas context:", e);
-      }
-    });
+      });
 
-    // Now restore canvas getContext method on prototype for future contexts
-    HTMLCanvasElement.prototype.getContext = window.__tabPowerSaverOriginalCanvasGetContext;
-  
-    // Clear the render time tracking WeakMap
-    if (window.__tabPowerSaverCanvasRenderMap) {
-      delete window.__tabPowerSaverCanvasRenderMap;
+      // Now restore canvas getContext method on prototype for future contexts
+      // Use Object.defineProperty to avoid "read-only" errors
+      try {
+        Object.defineProperty(HTMLCanvasElement.prototype, 'getContext', {
+          value: window.__tabPowerSaverOriginalCanvasGetContext,
+          configurable: true,
+          writable: true
+        });
+      } catch (e) {
+        // If Object.defineProperty fails, try direct assignment as fallback
+        try {
+          HTMLCanvasElement.prototype.getContext = window.__tabPowerSaverOriginalCanvasGetContext;
+        } catch (e2) {
+          console.warn("Could not restore HTMLCanvasElement.prototype.getContext:", e2.message);
+        }
+      }
+    
+      // Clear the render time tracking WeakMap
+      if (window.__tabPowerSaverCanvasRenderMap) {
+        delete window.__tabPowerSaverCanvasRenderMap;
+      }
+      
+      // Clean up the stored original
+      delete window.__tabPowerSaverOriginalCanvasGetContext;
+    
+      console.log("✓ Canvas rendering functionality restored");
+    } catch (e) {
+      console.warn("Warning: Could not fully restore canvas methods:", e.message);
     }
-  
-    console.log("✓ Canvas rendering functionality restored");
   } else {
     console.warn("Warning: Original canvas methods not found for restoration");
   }
@@ -107,7 +128,7 @@
   }
   
   if (window.__tabPowerSaverMediaState) {
-    window.__tabPowerSaverMediaState.forEach(({ element, wasPlaying, currentTime }) => {
+    window.__tabPowerSaverMediaState.forEach(({ element, wasPlaying, currentTime, originalAutoplay }) => {
       // Restore original play method
       if (element.__originalPlay) {
         element.play = element.__originalPlay;
@@ -133,8 +154,9 @@
         });
       }
   
+      // Restore original autoplay state (default to true if not stored)
       element.removeAttribute('data-was-playing');
-      element.autoplay = true;
+      element.autoplay = originalAutoplay !== undefined ? originalAutoplay : true;
     });
   
     delete window.__tabPowerSaverMediaState;
@@ -145,29 +167,53 @@
   
   // === 4. RESTORE LAYOUT FUNCTIONALITY ===
   if (window.__tabPowerSaverOriginalResizeObserver) {
-    window.ResizeObserver = window.__tabPowerSaverOriginalResizeObserver;
-    delete window.__tabPowerSaverOriginalResizeObserver;
-    console.log("✓ ResizeObserver restored");
+    try {
+      Object.defineProperty(window, 'ResizeObserver', {
+        value: window.__tabPowerSaverOriginalResizeObserver,
+        configurable: true,
+        writable: true
+      });
+      delete window.__tabPowerSaverOriginalResizeObserver;
+      console.log("✓ ResizeObserver restored");
+    } catch (e) {
+      console.warn("Warning: Could not restore ResizeObserver:", e.message);
+    }
   }
   
   if (window.__tabPowerSaverOriginalIntersectionObserver) {
-    window.IntersectionObserver = window.__tabPowerSaverOriginalIntersectionObserver;
-    delete window.__tabPowerSaverOriginalIntersectionObserver;
-    console.log("✓ IntersectionObserver restored");
+    try {
+      Object.defineProperty(window, 'IntersectionObserver', {
+        value: window.__tabPowerSaverOriginalIntersectionObserver,
+        configurable: true,
+        writable: true
+      });
+      delete window.__tabPowerSaverOriginalIntersectionObserver;
+      console.log("✓ IntersectionObserver restored");
+    } catch (e) {
+      console.warn("Warning: Could not restore IntersectionObserver:", e.message);
+    }
   }
   
   // === 5. RESTORE WEB WORKER FUNCTIONALITY ===
   if (window.__tabPowerSaverOriginalWorker) {
-    // Restore Worker constructor for future workers
-    window.Worker = window.__tabPowerSaverOriginalWorker;
-    delete window.__tabPowerSaverOriginalWorker;
+    try {
+      // Restore Worker constructor for future workers
+      Object.defineProperty(window, 'Worker', {
+        value: window.__tabPowerSaverOriginalWorker,
+        configurable: true,
+        writable: true
+      });
+      delete window.__tabPowerSaverOriginalWorker;
   
-    // NOTE: Cannot restore existing worker instances - browser security prevents
-    // enumeration of active workers. The constructor restoration ensures NEW workers
-    // created after restoration will work normally. Existing throttled workers will
-    // remain throttled until they are terminated or the page is reloaded.
+      // NOTE: Cannot restore existing worker instances - browser security prevents
+      // enumeration of active workers. The constructor restoration ensures NEW workers
+      // created after restoration will work normally. Existing throttled workers will
+      // remain throttled until they are terminated or the page is reloaded.
   
-    console.log("✓ Web Worker constructor restored (existing workers remain throttled)");
+      console.log("✓ Web Worker constructor restored (existing workers remain throttled)");
+    } catch (e) {
+      console.warn("Warning: Could not restore Worker constructor:", e.message);
+    }
   }
   
   // === 6. RESTORE CSS LAYOUT – WITH SCROLL POSITION ===

@@ -124,8 +124,8 @@ window.__tabPowerSaverRAFIdMap = rafIdMap;
   // Store the WeakMap globally so it can be accessed during restoration if needed
   window.__tabPowerSaverCanvasRenderMap = canvasLastRender;
 
-  // Throttle 2D canvas
-  HTMLCanvasElement.prototype.getContext = function(type, ...args) {
+  // Create throttled getContext function
+  const throttledGetContext = function(type, ...args) {
     const context = originalCanvasGetContext.call(this, type, ...args);
 
     if (type === '2d' && context) {
@@ -186,6 +186,19 @@ window.__tabPowerSaverRAFIdMap = rafIdMap;
     return context;
   };
 
+  // Use Object.defineProperty to override getContext (more reliable in strict mode)
+  try {
+    Object.defineProperty(HTMLCanvasElement.prototype, 'getContext', {
+      value: throttledGetContext,
+      configurable: true,
+      writable: true
+    });
+  } catch (e) {
+    // Fallback to direct assignment if Object.defineProperty fails
+    console.warn("[THROTTLE] Could not use Object.defineProperty for canvas, using direct assignment:", e.message);
+    HTMLCanvasElement.prototype.getContext = throttledGetContext;
+  }
+
   // Store reference for restoration
   window.__tabPowerSaverOriginalCanvasGetContext = originalCanvasGetContext;
 })();
@@ -200,13 +213,14 @@ function throttleMediaElement(media) {
   
   const wasPlaying = !media.paused;
   const currentTime = media.currentTime;
+  const originalAutoplay = media.autoplay; // Store original autoplay state
   
   if (wasPlaying) {
     media.pause();
     media.setAttribute('data-was-playing', 'true');
   }
   
-  mediaElements.push({ element: media, wasPlaying, currentTime });
+  mediaElements.push({ element: media, wasPlaying, currentTime, originalAutoplay });
 
   // Prevent autoplay when tab becomes active
   media.autoplay = false;
