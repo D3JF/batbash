@@ -213,18 +213,27 @@ function throttleMediaElement(media) {
   
   const wasPlaying = !media.paused;
   const currentTime = media.currentTime;
-  const originalAutoplay = media.autoplay; // Store original autoplay state
+  const originalAutoplay = media.autoplay;
+  const originalMuted = media.muted; // Store original muted state
   
   if (wasPlaying) {
     media.pause();
     media.setAttribute('data-was-playing', 'true');
+    // Mute while paused to prevent any background audio
+    media.muted = true;
   }
   
-  mediaElements.push({ element: media, wasPlaying, currentTime, originalAutoplay });
+  // Store state including original muted value
+  mediaElements.push({ 
+    element: media, 
+    wasPlaying, 
+    currentTime, 
+    originalAutoplay, 
+    originalMuted 
+  });
 
   // Prevent autoplay when tab becomes active
   media.autoplay = false;
-  media.muted = true;
 
   // Store original play method to restore later
   if (!media.__originalPlay) {
@@ -272,132 +281,30 @@ window.__tabPowerSaverMediaState = mediaElements;
 window.__tabPowerSaverMediaObserver = mediaObserver;
 
 // === 5. LAYOUT THRASHING PREVENTION ===
-(function() {
-  // Store originals for restoration
-  window.__tabPowerSaverOriginalResizeObserver = window.ResizeObserver;
-  window.__tabPowerSaverOriginalIntersectionObserver = window.IntersectionObserver;
-
-  // Throttle ResizeObserver
-  window.ResizeObserver = class extends window.__tabPowerSaverOriginalResizeObserver {
-    constructor(callback) {
-      super(entries => {
-        // Only process resize observations once every 10 seconds
-        window.__tabPowerSaverOriginals.setTimeout(() => callback(entries), 10000);
-      });
-    }
-  };
-
-  // Throttle IntersectionObserver
-  window.IntersectionObserver = class extends window.__tabPowerSaverOriginalIntersectionObserver {
-    constructor(callback, options) {
-      super(entries => {
-        // Only process intersection observations once every 5 seconds
-        window.__tabPowerSaverOriginals.setTimeout(() => callback(entries), 5000);
-      }, options);
-    }
-  };
-})();
+// NOTE: ResizeObserver and IntersectionObserver are read-only in modern browsers
+// Attempting to override them causes silent script failures, so we skip them (KISS principle)
 
 // === 6. WEB WORKER THROTTLING ===
-(function() {
-  // Store original for restoration
-  window.__tabPowerSaverOriginalWorker = window.Worker;
+// NOTE: Worker throttling is overly complex and can break web apps
+// Following KISS principle - skip this feature for better reliability
 
-  window.Worker = function(url, options) {
-    console.debug(`[THROTTLE] Worker creation intercepted: ${url}`);
-
-    // Create the actual worker
-    const worker = new window.__tabPowerSaverOriginalWorker(url, options);
-
-    // Store original methods for restoration
-    worker.__originalPostMessage = worker.postMessage;
-
-    // Throttle worker messages to once every 5 seconds
-    worker.postMessage = function(message, transfer) {
-      window.__tabPowerSaverOriginals.setTimeout(() => {
-        this.__originalPostMessage(message, transfer);
-      }, 5000);
-    };
-
-    // Store original event handlers
-    worker.__originalOnMessage = worker.onmessage;
-    worker.__originalOnError = worker.onerror;
-
-    // Throttle message handling
-    worker.onmessage = function(e) {
-      window.__tabPowerSaverOriginals.setTimeout(() => {
-        if (this.__originalOnMessage) {
-          this.__originalOnMessage(e);
-        }
-      }, 5000);
-    };
-
-    worker.onerror = function(e) {
-      window.__tabPowerSaverOriginals.setTimeout(() => {
-        if (this.__originalOnError) {
-          this.__originalOnError(e);
-        }
-      }, 5000);
-    };
-
-    return worker;
-  };
-})();
-
-// === 7. CSS OPTIMIZATIONS – LAYOUT-SAFE ===
+// === 7. CSS OPTIMIZATIONS – SIMPLIFIED ===
 // Add data attribute to mark throttled state
 document.documentElement.setAttribute('data-tab-power-saver', 'throttled');
 
+// Add minimal CSS to pause animations - keep it simple to avoid layout issues
 const style = document.createElement('style');
 style.setAttribute('data-power-saver', 'true');
 style.textContent = `
-  /* HIGH SPECIFICITY SELECTORS - ONLY APPLY WHEN DATA ATTRIBUTE IS PRESENT */
-  html[data-tab-power-saver="throttled"] {
-    overflow: hidden !important;
-    /* keep original height so player does not resize */
-    min-height: 100vh !important;
-    height: auto !important;
-  }
-
-  html[data-tab-power-saver="throttled"] body {
-    overflow: hidden !important;
-    /* do NOT force height:100% – let content keep its original size */
-  }
-
-  /* PAUSE animations instead of removing them - preserves animation state */
+  /* ONLY pause CSS animations - nothing else to avoid breaking layouts */
   html[data-tab-power-saver="throttled"] * {
     animation-play-state: paused !important;
     -webkit-animation-play-state: paused !important;
-    will-change: auto !important;
-  }
-
-  /* Disable transitions EXCEPT on hover/focus for UI feedback */
-  html[data-tab-power-saver="throttled"] *:not(:hover):not(:focus):not(:focus-within) {
-    transition-duration: 0s !important;
-    -webkit-transition-duration: 0s !important;
-  }
-
-  /* Hide pseudo-elements ONLY if they're decorative (not icons/critical UI) */
-  /* Use visibility instead of display to prevent layout shifts */
-  /* Exclude common icon font patterns: fa-, icon-, material-icons, glyphicon, etc. */
-  html[data-tab-power-saver="throttled"] *:not([class*="icon"]):not([class*="fa-"]):not([class*="material"]):not([class*="glyph"]):not([class*="svg"])::before,
-  html[data-tab-power-saver="throttled"] *:not([class*="icon"]):not([class*="fa-"]):not([class*="material"]):not([class*="glyph"]):not([class*="svg"])::after {
-    visibility: hidden !important;
-    pointer-events: none !important;
-  }
-
-  /* Higher specificity for repaint reduction */
-  html[data-tab-power-saver="throttled"] * {
-    -webkit-backface-visibility: hidden !important;
-    -moz-backface-visibility: hidden !important;
-    backface-visibility: hidden !important;
-    -webkit-transform: translate3d(0, 0, 0) !important;
-    transform: translate3d(0, 0, 0) !important;
   }
 `;
-  document.head.appendChild(style);
-  window.__tabPowerSaverStyleElement = style;
+document.head.appendChild(style);
+window.__tabPowerSaverStyleElement = style;
 
-  console.log("SUPER-AGGRESSIVE throttling applied successfully (layout-safe)");
-  console.log("JavaScript timers, animations, canvas, and media are now severely restricted");
+console.log("✓ Tab throttling applied successfully");
+console.log("✓ JavaScript timers, animations, canvas, and media are now throttled");
 })(); // End IIFE - ensures idempotency check prevents re-execution

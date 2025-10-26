@@ -280,8 +280,13 @@ function throttleTab(tabId) {
       code: 'typeof window.__tabPowerSaverApplied !== "undefined" && window.__tabPowerSaverApplied === true'
     }, (checkResults) => {
       if (browserApi.runtime.lastError) {
-        // Can't check, try throttling anyway
-        console.debug(`⚠️ [${throttleTime % 100000}] Could not check throttle status, proceeding: ${browserApi.runtime.lastError.message}`);
+        const errorMsg = browserApi.runtime.lastError.message;
+        // If we can't check, the page likely doesn't allow script injection at all
+        if (errorMsg.includes('Missing host permission') || errorMsg.includes('access')) {
+          console.debug(`🔒 [${throttleTime % 100000}] Cannot access tab, skipping: ${errorMsg}`);
+          return; // Don't try to inject if we can't even check
+        }
+        console.debug(`⚠️ [${throttleTime % 100000}] Could not check throttle status, attempting injection: ${errorMsg}`);
         injectThrottleScript(tabId, tab, throttleTime);
         return;
       }
@@ -305,10 +310,11 @@ function injectThrottleScript(tabId, tab, throttleTime) {
       file: 'throttle-script.js'
     }, (results) => {
       if (browserApi.runtime.lastError) {
-        if (browserApi.runtime.lastError.message.includes('Missing host permission')) {
+        const errorMsg = browserApi.runtime.lastError.message;
+        if (errorMsg.includes('Missing host permission') || errorMsg.includes('access')) {
           console.log(`🔒 [${throttleTime % 100000}] Skipping tab without permission: ${tab.url}`);
         } else {
-          console.error(`❌ [${throttleTime % 100000}] Failed to throttle tab ${tabId}:`, browserApi.runtime.lastError.message);
+          console.error(`❌ [${throttleTime % 100000}] Failed to throttle tab ${tabId} (${tab.url}):`, errorMsg);
         }
         return;
       }

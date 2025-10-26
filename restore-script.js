@@ -128,8 +128,8 @@
   }
   
   if (window.__tabPowerSaverMediaState) {
-    window.__tabPowerSaverMediaState.forEach(({ element, wasPlaying, currentTime, originalAutoplay }) => {
-      // Restore original play method
+    window.__tabPowerSaverMediaState.forEach(({ element, wasPlaying, currentTime, originalAutoplay, originalMuted }) => {
+      // Restore original play method FIRST - critical for YouTube and other sites
       if (element.__originalPlay) {
         element.play = element.__originalPlay;
         delete element.__originalPlay;
@@ -138,10 +138,12 @@
       // Clean up throttle marker
       delete element.__tabPowerSaverThrottled;
   
+      // Always restore the original muted state (critical for audio restoration)
+      element.muted = originalMuted !== undefined ? originalMuted : false;
+  
       // Restore playback state
       if (wasPlaying) {
         element.currentTime = currentTime;
-        element.muted = false;
   
         // Try to resume playback
         element.play().catch(e => {
@@ -166,83 +168,21 @@
   }
   
   // === 4. RESTORE LAYOUT FUNCTIONALITY ===
-  if (window.__tabPowerSaverOriginalResizeObserver) {
-    try {
-      Object.defineProperty(window, 'ResizeObserver', {
-        value: window.__tabPowerSaverOriginalResizeObserver,
-        configurable: true,
-        writable: true
-      });
-      delete window.__tabPowerSaverOriginalResizeObserver;
-      console.log("✓ ResizeObserver restored");
-    } catch (e) {
-      console.warn("Warning: Could not restore ResizeObserver:", e.message);
-    }
-  }
-  
-  if (window.__tabPowerSaverOriginalIntersectionObserver) {
-    try {
-      Object.defineProperty(window, 'IntersectionObserver', {
-        value: window.__tabPowerSaverOriginalIntersectionObserver,
-        configurable: true,
-        writable: true
-      });
-      delete window.__tabPowerSaverOriginalIntersectionObserver;
-      console.log("✓ IntersectionObserver restored");
-    } catch (e) {
-      console.warn("Warning: Could not restore IntersectionObserver:", e.message);
-    }
-  }
+  // NOTE: ResizeObserver and IntersectionObserver are read-only in modern browsers
+  // We no longer throttle them, so no restoration needed (KISS principle)
   
   // === 5. RESTORE WEB WORKER FUNCTIONALITY ===
-  if (window.__tabPowerSaverOriginalWorker) {
-    try {
-      // Restore Worker constructor for future workers
-      Object.defineProperty(window, 'Worker', {
-        value: window.__tabPowerSaverOriginalWorker,
-        configurable: true,
-        writable: true
-      });
-      delete window.__tabPowerSaverOriginalWorker;
+  // NOTE: Worker throttling was removed for better reliability (KISS principle)
+  // No restoration needed
   
-      // NOTE: Cannot restore existing worker instances - browser security prevents
-      // enumeration of active workers. The constructor restoration ensures NEW workers
-      // created after restoration will work normally. Existing throttled workers will
-      // remain throttled until they are terminated or the page is reloaded.
-  
-      console.log("✓ Web Worker constructor restored (existing workers remain throttled)");
-    } catch (e) {
-      console.warn("Warning: Could not restore Worker constructor:", e.message);
-    }
-  }
-  
-  // === 6. RESTORE CSS LAYOUT – WITH SCROLL POSITION ===
+  // === 6. RESTORE CSS ANIMATIONS ===
   if (window.__tabPowerSaverStyleElement) {
-    // Remove our throttling styles first
+    // Remove our throttling styles
     if (window.__tabPowerSaverStyleElement.parentNode) {
       window.__tabPowerSaverStyleElement.parentNode.removeChild(window.__tabPowerSaverStyleElement);
     }
-  
-    // remember scroll offset before we reflow
-    const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-  
-    // Restore overflow WITHOUT destroying existing inline styles
-    // Use setProperty with priority instead of cssText
-    document.documentElement.style.setProperty('overflow', 'auto', 'important');
-    document.body.style.setProperty('overflow', 'auto', 'important');
-  
-    // put scrollbar back at the previous position
-    window.scrollTo(0, scrollTop);
-  
-    // Trigger a reflow to ensure layout recalculates
-    void document.body.offsetWidth;
-  
-    console.log("✓ CSS layout restored with overflow fixes");
-  } else {
-    // Fallback restoration if style element is missing
-    document.documentElement.style.setProperty('overflow', 'auto', 'important');
-    document.body.style.setProperty('overflow', 'auto', 'important');
-    console.warn("Warning: Throttling style element not found - using fallback overflow restoration");
+    delete window.__tabPowerSaverStyleElement;
+    console.log("✓ CSS animations restored");
   }
   
   // === 7. FINAL CLEANUP ===

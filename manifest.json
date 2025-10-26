@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "BATBASH - the tab-throttling power saver",
-  "version": "1.0",
+  "version": "1.1",
   "description": "Saves battery by aggressively throttling background tabs (memory preserved!). Make sure to whitelist websites that are incompatible with the philosophy of throttling their hopes and dreams for extreme power savings!",
 
   "content_security_policy": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'",
@@ -14,7 +14,6 @@
   "permissions": [
     "tabs",
     "storage",
-    "scripting",
     "*://*/*"
   ],
 
